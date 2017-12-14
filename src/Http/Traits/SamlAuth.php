@@ -154,6 +154,25 @@ trait SamlAuth
             $user  = \Auth::user();
             $email = $user->email;
             $name  = $user->name;
+            
+            // Overwrite the $user setting above, if necessary. Added 12/14/2017 by DSB.
+	        if ($user->isDelegate()) {
+		        $ownerUser     = $request->session()->get('masterUser');
+		        $dashAccess    = DashboardAccess::where('server_user_id', $user->server_user_id)->get()->toArray();
+		        $hasAccess     = array_search($ownerUser->id, array_column($dashAccess, 'user_id'));
+		        if ($hasAccess !== false) {
+			        $user  = $ownerUser;
+			        $email = $user->email;
+			        $name  = $user->name;
+		        }
+	        } elseif ($user->isImpersonating()) {
+	        	$impersonateUser = \Auth::onceUsingId($request->session()->get('impersonate'));
+		        $user  = $impersonateUser;
+		        $email = $user->email;
+		        $name  = $user->name;
+	        }
+	        // End Added 12/14/2017 by DSB.
+            
             if (config('saml.forward_roles'))
                 $roles = $user->roles->pluck('name')->all();
         }else {
